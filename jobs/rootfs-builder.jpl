@@ -46,6 +46,10 @@ import org.kernelci.util.Job
 
 def build(config, arch, pipeline_version, kci_core, rootfs_type) {
     dir(kci_core) {
+        sh 'id'
+        sh 'sudo id'
+        sh 'ls'
+/*
         sh(script: """\
 ./kci_rootfs \
 build \
@@ -54,6 +58,7 @@ build \
 --data-path config/rootfs/${rootfs_type} \
 --output ${pipeline_version}
 """)
+*/
     }
 }
 
@@ -65,9 +70,14 @@ def upload(config, pipeline_version, kci_core, rootfs_type, arch) {
        rootfs_upload_path = "images/rootfs/buildroot/${config}/${pipeline_version}"
     }
 
+    if (rootfs_type == "chromiumos") {
+       rootfs_upload_path = "images/rootfs/chromeos/${config}/${pipeline_version}"
+    }
+
     dir(kci_core) {
         withCredentials([string(credentialsId: params.KCI_API_TOKEN_ID,
                                 variable: 'API_TOKEN')]) {
+
             sh(script: """\
 ./kci_rootfs \
 upload \
@@ -76,6 +86,7 @@ upload \
 --rootfs-dir ${pipeline_version}/_install_/${config} \
 --upload-path ${rootfs_upload_path}
 """)
+
         }
     }
 }
@@ -106,18 +117,21 @@ node("debos && docker") {
     }
 
     j.dockerPullWithRetry(docker_image).
-        inside(" --privileged --device /dev/kvm ") {
+        inside(" --privileged --device /dev/kvm -v /dev:/dev") {
+
 
         stage("Build") {
             timeout(time: 8, unit: 'HOURS') {
 	        build(config, arch, pipeline_version, kci_core, rootfs_type)
             }
         }
-
+/*
         stage("Upload") {
             timeout(time: 30, unit: 'MINUTES') {
                 upload(config, pipeline_version, kci_core, rootfs_type, arch);
             }
         }
+*/
     }
+    sh 'scp -P 22022 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no kernelci-core/COPYING chromeos@storage.chromeos.kernelci.org:images/rootfs'
 }
