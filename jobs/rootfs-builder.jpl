@@ -46,6 +46,9 @@ import org.kernelci.util.Job
 
 def build(config, arch, pipeline_version, kci_core, rootfs_type) {
     dir(kci_core) {
+        sh 'id'
+        sh 'sudo id'
+        sh 'df -h'
         sh(script: """\
 ./kci_rootfs \
 build \
@@ -63,6 +66,10 @@ def upload(config, pipeline_version, kci_core, rootfs_type, arch) {
 
     if (rootfs_type == "buildroot") {
        rootfs_upload_path = "images/rootfs/buildroot/${config}/${pipeline_version}"
+    }
+
+    if (rootfs_type == "chromiumos") {
+       rootfs_upload_path = "images/rootfs/chromeos/${config}/${pipeline_version}"
     }
 
     dir(kci_core) {
@@ -101,12 +108,17 @@ node("debos && docker") {
         return
     }
 
+    script {
+       sh "id"
+       sh "sudo id"
+    }
+
     j.dockerPullWithRetry(docker_image).inside() {
         j.cloneKciCore(kci_core, params.KCI_CORE_URL, params.KCI_CORE_BRANCH)
     }
 
     j.dockerPullWithRetry(docker_image).
-        inside(" --privileged --device /dev/kvm ") {
+        inside(" --privileged --device /dev/kvm -v /dev:/dev") {
 
         stage("Build") {
             timeout(time: 8, unit: 'HOURS') {
