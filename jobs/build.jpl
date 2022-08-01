@@ -112,6 +112,9 @@ node("docker" && params.NODE_LABEL) {
 
 		    /* Wait for pod to finish (will also dump logs and remove job) */
 		    sh(script: "./config/k8s/wait.py --context ${k8s_context} --job-name ${k8s_job} | tee ${k8s_job}.log")
+		    if (params.DEFCONFIG.matches(".*gki_defconfig.*")) {
+			sh(script: "xz -9 logs/kernel.log")
+		    }
 
 		    /* Find upload path */
 		    upload_path_line = sh(script: "grep \"^Upload path:\" ${k8s_job}.log",
